@@ -17,4 +17,5 @@ Implementação de cliente e servidor UDP comum utilizando a biblioteca Socket n
 
 1. Clone esse repositório e entre na sua pasta no terminal
 2. Em seguida, entre na branch `feature/UDP`
+1. Abra o terminal dentro do di
 
