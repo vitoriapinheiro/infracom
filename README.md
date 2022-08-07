@@ -16,6 +16,8 @@ Implementação de cliente e servidor UDP comum utilizando a biblioteca Socket n
 ### Como rodar
 
 1. Clone esse repositório e entre na sua pasta no terminal
-2. Em seguida, entre na branch `feature/UDP`
-1. Abra o terminal dentro do di
+1. Em seguida, entre na branch `feature/UDP`
+1. Abra o terminal dentro do diretório "infracom" e rode o comando `python3 server.py` para iniciar o servidor
+1. A seguir, abra outro terminal no mesmo diretório e rode o comando `python3 client.py` para iniciar o cliente
 
+OBS: Certifique-se que não existe nenhuma pasta "new-files" no diretório "infracom"
