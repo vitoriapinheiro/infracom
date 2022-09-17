@@ -10,16 +10,38 @@ SERVER_PORT = 5002 # Porta que o servidor vai ouvir
 
 SERVER = (SERVER_IP, SERVER_PORT)
 
-expected_num_seq = b'1'
+num_seq = b'0' # número de sequencia inicial
+
+expected_num_seq = b'1' # primeiro número de sequencia esperado
 
 def send_ACK(num_seq, client_address):
     global expected_num_seq
 
-    udp.sendto(expected_num_seq, client_address)
+    udp.sendto(expected_num_seq, client_address) # envia o ACK com o número de sequencia esperado
     
-    if num_seq == expected_num_seq:
+    if num_seq == expected_num_seq: # se o que foi recebido era o esperado, muda o número esperado
         expected_num_seq =  b'0' if (expected_num_seq == b'1') else b'1'
-        print("estou esperando agora", expected_num_seq)
+
+def correct_ACK():
+    global num_seq
+
+    ACK_msg, _ = udp.recvfrom(1) # espera receber o ACK
+    if (ACK_msg == num_seq):
+        return True
+    else:
+        return False
+
+def send_pkt(msg, address):
+    global num_seq
+
+    num_seq = b'0' if (num_seq == b'1') else b'1'
+
+    while True:
+        pkt = num_seq + msg
+        udp.sendto(pkt, address) # enviar o pacote em bytes enquanto tiver
+        if correct_ACK():
+            break
+
 
 def receive_files(output_directory):
     udp.bind(SERVER) # faz o bind do ip da porta para comecar a ouvir
@@ -37,10 +59,8 @@ def receive_files(output_directory):
 
         filename = filename.decode("utf-8")
 
-        num_seq = bytes(filename[0], "utf-8")
-        print(f"recebi numero {num_seq}")
-        print(f"tava esperando {expected_num_seq}")
-        filename = filename[1:]
+        num_seq = bytes(filename[0], "utf-8") # número de sequencia no primeiro byte recebido
+        filename = filename[1:] # todo o resto são dados
         
         send_ACK(num_seq, client_address)
 
@@ -55,16 +75,14 @@ def receive_files(output_directory):
         with open(new_filename, "wb") as f:
             while True:
                 bytes_read, client_address = udp.recvfrom(BUFFER_SIZE) # recebe os dados do arquivo
-
-                bytes_read = bytes_read.decode("utf-8")
                 
                 num_seq = bytes_read[0]
-                num_seq = bytes(num_seq, "utf-8")
-
-                bytes_read = bytes_read.encode("utf-8")
-
-                print("num_seq:", num_seq)
-                print("expected:", expected_num_seq)
+                
+                # converte o número de sequencia para bytes
+                if num_seq == 48:
+                    num_seq = b'0'
+                if num_seq == 49:
+                    num_seq = b'1'
 
                 bytes_read = bytes_read[1:]
 
@@ -100,23 +118,22 @@ def send_files(read_dir, client_address):
 
     for file in files:
         filename_encoded = bytes(file, "utf-8") # codificar o nome do arquivo
-        udp.sendto(filename_encoded, client_address) # enviar o nome do arquivo para o cliente
+        send_pkt(filename_encoded, client_address)
         
         with open(file, "rb") as f:
             while True:
                 bytes_read = f.read(BUFFER_SIZE) # ler o arquivo
                 if not bytes_read:
                     print(f"arquivo '{file}' enviado") 
-                    udp.sendto(b"ENDFILE", client_address) # flag de fim do arquivo 
+                    send_pkt(b"ENDFILE", client_address) # flag de fim do arquivo 
                     break
                 else:
-                    udp.sendto(bytes_read, client_address) # enviar o arquivo em bytes enquanto tiver
+                    send_pkt(bytes_read, client_address)
 
             f.close()
 
     print("Todos os arquivos foram enviados")
-    udp.sendto (b"END", client_address) # flag de fim de todos os arquivos da pasta
-
+    send_pkt(b"END",client_address)  # flag de fim de todos os arquivos da pasta
 
 
 udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket UDP
@@ -124,7 +141,7 @@ udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket UDP
 rcv_directory = "server" # diretório para guardar os arquivos
 client_address = receive_files(rcv_directory)
 
-#read_directory = "server" 
-#send_files(read_directory, client_address)
+read_directory = "server" 
+send_files(read_directory, client_address)
 
 udp.close() # fecha o socket
