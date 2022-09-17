@@ -5,9 +5,34 @@ BUFFER_SIZE = 1024 # tamanho do buffer
 
 SERVER_IP = "localhost" # endereco IP do servidor
 
-SERVER_PORT = 5001 # porta que o servidor esta esperando a msg
+SERVER_PORT = 5002 # porta que o servidor esta esperando a msg
 
 SERVER_DEST = (SERVER_IP, SERVER_PORT)
+
+num_seq = b'0'
+
+def correct_ACK():
+    global num_seq
+
+    ACK_msg, _ = udp.recvfrom(1) # espera receber o ACK
+    if (ACK_msg == num_seq):
+        print(f'ok: recebido ({ACK_msg})')
+        return True
+    else:
+        print(f'ack errado: esperado ({num_seq}), recebido ({ACK_msg})')
+        return False
+
+def send_pkt(msg):
+    global num_seq
+
+    num_seq = b'0' if (num_seq == b'1') else b'1'
+
+    while True:
+        pkt = num_seq + msg
+        udp.sendto(pkt, SERVER_DEST) # enviar o pacote em bytes enquanto tiver
+        print(f"enviou pacote {num_seq}")
+        if correct_ACK():
+            break
 
 udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket udp
 
@@ -28,58 +53,60 @@ os.chdir(directory)
 
 for file in files:
     filename_encoded = bytes(file, "utf-8") # codificar o nome do arquivo
-    udp.sendto(filename_encoded, SERVER_DEST) # enviar o nome do arquivo para o servidor
+    send_pkt(filename_encoded)
     
     with open(file, "rb") as f:
         while True:
-            bytes_read = f.read(BUFFER_SIZE) # ler o arquivo
+            bytes_read = f.read(BUFFER_SIZE-1) # ler o arquivo
             if not bytes_read:
                 print(f"arquivo '{file}' enviado") 
-                udp.sendto(b"ENDFILE", SERVER_DEST) # flag de fim do arquivo 
+                send_pkt(b"ENDFILE")
                 break
-            else:
-                udp.sendto(bytes_read, SERVER_DEST) # enviar o arquivo em bytes enquanto tiver
+            else: # envia pacote
+                send_pkt(bytes_read)
 
         f.close()
 
 print("Todos os arquivos foram enviados")
-udp.sendto (b"END", SERVER_DEST) # flag de fim de todos os arquivos da pasta
 
-os.chdir("../")
-
-directory = "destiny"
-
-try:
-    os.mkdir(directory) # cria o diretório e entra nele
-except: 
-    pass
-
-os.chdir(directory)
+send_pkt(b"END")
 
 
-# Recebendo arquivos
-while True:
-    filename, server_address = udp.recvfrom(BUFFER_SIZE) # recebe o nome do arquivo
-    filename = filename.decode("utf-8")
+# os.chdir("../")
 
-    if filename == "END": # verifica se os arquivos terminaram
-        print("Todos os arquivos foram recebidos")
-        break
+# directory = "destiny"
 
-    new_filename = f"new-{filename}"
+# try:
+#     os.mkdir(directory) # cria o diretório e entra nele
+# except: 
+#     pass
 
-    bytes_read = b""
+# os.chdir(directory)
 
-    with open(new_filename, "wb") as f:
-        while True:
-            bytes_read, server_address = udp.recvfrom(BUFFER_SIZE) # recebe os dados do arquivo
-            if bytes_read == b"ENDFILE": # verifica se o arquivo terminou
-                print(f"recebi o arquivo '{filename}'")
-                break
 
-            f.write(bytes_read) # escreve os dados recebidos no arquivo criado
+# # Recebendo arquivos
+# while True:
+#     filename, server_address = udp.recvfrom(BUFFER_SIZE) # recebe o nome do arquivo
+#     filename = filename.decode("utf-8")
 
-        f.close()
+#     if filename == "END": # verifica se os arquivos terminaram
+#         print("Todos os arquivos foram recebidos")
+#         break
+
+#     new_filename = f"new-{filename}"
+
+#     bytes_read = b""
+
+#     with open(new_filename, "wb") as f:
+#         while True:
+#             bytes_read, server_address = udp.recvfrom(BUFFER_SIZE) # recebe os dados do arquivo
+#             if bytes_read == b"ENDFILE": # verifica se o arquivo terminou
+#                 print(f"recebi o arquivo '{filename}'")
+#                 break
+
+#             f.write(bytes_read) # escreve os dados recebidos no arquivo criado
+
+#         f.close()
 
 
 udp.close() # fechar o socket
