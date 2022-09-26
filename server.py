@@ -12,7 +12,11 @@ SERVER = (SERVER_IP, SERVER_PORT)
 
 num_seq = b'0' # número de sequencia inicial
 
+packet_counter = 0
+
 expected_num_seq = b'1' # primeiro número de sequencia esperado
+
+client_address = None
 
 def send_ACK(num_seq, client_address):
     global expected_num_seq
@@ -44,8 +48,8 @@ def send_pkt(msg, address):
 
 
 def receive_files(output_directory):
+    global packet_counter, client_address
     udp.bind(SERVER) # faz o bind do ip da porta para comecar a ouvir
-
     try:
         os.mkdir(output_directory) # cria o diretório e entra nele
     except: 
@@ -55,12 +59,18 @@ def receive_files(output_directory):
 
     # Recebendo arquivos
     while True:
-        filename, client_address = udp.recvfrom(BUFFER_SIZE) # recebe o nome do arquivo
+        try:
+            filename, client_address = udp.recvfrom(BUFFER_SIZE) # recebe o nome do arquivo
+
+        except socket.timeout:
+            if client_address is not None:
+                udp.sendto(num_seq, client_address)
+            continue
 
         filename = filename.decode("utf-8")
 
         num_seq = bytes(filename[0], "utf-8") # número de sequencia no primeiro byte recebido
-        filename = filename[1:] # todo o resto são dados
+        filename = filename[1:] # todo o resto são dados    
         
         send_ACK(num_seq, client_address)
 
@@ -95,7 +105,7 @@ def receive_files(output_directory):
                 f.write(bytes_read) # escreve os dados recebidos no arquivo criado
 
             f.close()
-    
+        
     # retorna para o root
     os.chdir("../")
     
@@ -137,6 +147,7 @@ def send_files(read_dir, client_address):
 
 
 udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket UDP
+udp.settimeout(0.3) # timer de 1 segundo
 
 rcv_directory = "server" # diretório para guardar os arquivos
 client_address = receive_files(rcv_directory)
