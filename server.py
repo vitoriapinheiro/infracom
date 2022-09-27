@@ -29,7 +29,10 @@ def send_ACK(num_seq, client_address):
 def correct_ACK():
     global num_seq
 
+
     ACK_msg, _ = udp.recvfrom(1) # espera receber o ACK
+
+
     if (ACK_msg == num_seq):
         return True
     else:
@@ -43,8 +46,11 @@ def send_pkt(msg, address):
     while True:
         pkt = num_seq + msg
         udp.sendto(pkt, address) # enviar o pacote em bytes enquanto tiver
-        if correct_ACK():
-            break
+        try:
+            if correct_ACK():
+                break
+        except socket.timeout:
+            continue
 
 
 def receive_files(output_directory):
@@ -128,8 +134,12 @@ def send_files(read_dir, client_address):
 
     for file in files:
         filename_encoded = bytes(file, "utf-8") # codificar o nome do arquivo
-        send_pkt(filename_encoded, client_address)
         
+        try:
+            send_pkt(filename_encoded, client_address)
+        except socket.timeout:
+            udp.sendto(filename_encoded, client_address)
+
         with open(file, "rb") as f:
             while True:
                 bytes_read = f.read(BUFFER_SIZE) # ler o arquivo
@@ -147,7 +157,7 @@ def send_files(read_dir, client_address):
 
 
 udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket UDP
-udp.settimeout(0.3) # timer de 1 segundo
+udp.settimeout(0.3) # timer 0.3 segundos
 
 rcv_directory = "server" # diretório para guardar os arquivos
 client_address = receive_files(rcv_directory)

@@ -38,12 +38,11 @@ def send_pkt(msg):
     while True:
         pkt = num_seq + msg
         udp.sendto(pkt, SERVER_DEST) # enviar o pacote em bytes enquanto tiver
-        if correct_ACK():
-            break
-
-udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket udp
-
-files = []
+        try:
+            if correct_ACK():
+                break
+        except socket.timeout:
+            continue
 
 # Enviando arquivos
 
@@ -90,7 +89,14 @@ def rcv_files(output_directory):
 
     # Recebendo arquivos
     while True:
-        filename, server_address = udp.recvfrom(BUFFER_SIZE) # recebe o nome do arquivo
+        try:
+            filename, server_address = udp.recvfrom(BUFFER_SIZE) # recebe o nome do arquivo
+
+        except socket.timeout:
+            if server_address is not None:
+                udp.sendto(num_seq, server_address)
+            continue
+
         filename = filename.decode("utf-8")
 
         num_seq = bytes(filename[0], "utf-8") # número de sequencia no primeiro byte recebido
@@ -131,6 +137,11 @@ def rcv_files(output_directory):
             f.close()
 
     os.chdir("../")
+
+udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket udp
+udp.settimeout(0.3)
+
+files = []
 
 read_dir = 'origin'
 send_files(read_dir)
