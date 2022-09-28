@@ -48,6 +48,7 @@ def send_pkt(msg):
 
 def send_files(read_dir):
     # Leitura de todos os arquivos da pasta
+    files = []
     
     for i, filename in enumerate(os.listdir(read_dir)): 
         f = os.path.join(read_dir, filename) 
@@ -60,7 +61,9 @@ def send_files(read_dir):
 
     for file in files:
         filename_encoded = bytes(file, "utf-8") # codificar o nome do arquivo
+
         send_pkt(filename_encoded)
+
         
         with open(file, "rb") as f:
             while True:
@@ -140,8 +143,6 @@ def rcv_files(output_directory):
 
 udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # criando o socket udp
 udp.settimeout(0.3)
-
-files = []
 
 read_dir = 'origin'
 send_files(read_dir)

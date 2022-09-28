@@ -1,5 +1,4 @@
 import os
-from pydoc import cli
 import socket
 
 BUFFER_SIZE = 1024
@@ -135,14 +134,12 @@ def send_files(read_dir, client_address):
     for file in files:
         filename_encoded = bytes(file, "utf-8") # codificar o nome do arquivo
         
-        try:
-            send_pkt(filename_encoded, client_address)
-        except socket.timeout:
-            udp.sendto(filename_encoded, client_address)
+        send_pkt(filename_encoded, client_address)
+
 
         with open(file, "rb") as f:
             while True:
-                bytes_read = f.read(BUFFER_SIZE) # ler o arquivo
+                bytes_read = f.read(BUFFER_SIZE-1) # ler o arquivo
                 if not bytes_read:
                     print(f"arquivo '{file}' enviado") 
                     send_pkt(b"ENDFILE", client_address) # flag de fim do arquivo 
@@ -151,6 +148,8 @@ def send_files(read_dir, client_address):
                     send_pkt(bytes_read, client_address)
 
             f.close()
+
+    os.chdir("../")
 
     print("Todos os arquivos foram enviados")
     send_pkt(b"END",client_address)  # flag de fim de todos os arquivos da pasta
