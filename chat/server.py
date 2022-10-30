@@ -16,7 +16,7 @@ expected_num_seq = [] # primeiro número de sequencia esperado
 acks = []
 
 time = 180            # tempo em segundos para poder banir um usuário
-timer = []
+timer = []            # ultimo momento que o usuário baniu alguem
 
 clients_names = []
 ban_counter = []
@@ -30,6 +30,11 @@ flag = 0
 
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server.bind(('localhost', 9999))
+
+# def timeChecker():
+#     global timer, clients, ban_counter, banned_names, ban_checker, vote_checker
+#     currTime = datetime.datetime.now()
+#     print("current time: ", currTime)
 
 def send_ACK(num_seq, client_address):
     global expected_num_seq
@@ -98,57 +103,61 @@ def broadcast():
           num_seq_list.append(b'0')
           expected_num_seq.append(b'1')
         if name not in banned_names:
-          send_ACK(ack, address) # ACK for received message
+          send_ACK(ack, address)               # ACK for received message
         
         for i, client in enumerate(clients):
           if message.decode().startswith('hi, meu nome eh:'):
             name = message.decode().split(':')[1]
             
             if (name in banned_names):
-              send_pkt(f'[{local_time}] O usuario {name} esta banido, nao pode entrar', client, i)
-              if clients[i] == address: # se o usuario que tentou entrar estive banido
+              send_pkt(f'[{local_time}] O usuario {name} esta banido, nao pode entrar'.encode(), client, i)
+              if clients[i] == address:       # se o usuario que tentou entrar estive banido
                 clients.pop(i)
                 num_seq_list.pop(i)
                 expected_num_seq.pop(i)
-            
+
             else:
-              if i == 0: # only append once
+              if i == 0:                # only append once
                 clients_names.append(name)
                 ban_counter.append([])
               send_pkt(f'[{local_time}]hi, meu nome eh:{name}'.encode(), client, i)
           else:
             message_content = message.decode().split(':')[1]
             name_request = message.decode().split(':')[0]
+            if name_request in banned_names:
+              send_pkt(f'[{local_time}] Você esta banido, nao pode enviar mensagens'.encode(), address, 1)
 
-            if message_content == " bye":
-              send_pkt(f'[{local_time}] {name_request} saiu do chat! :('.encode(), client, i)
+            else:
+              if message_content == " bye":
+                send_pkt(f'[{local_time}] {name_request} saiu do chat! :('.encode(), client, i)
 
-            elif message_content == " list":
-              if name_request == clients_names[i]:
-                send_pkt(f'[{local_time}] {clients_names}'.encode(), client, i)
+              elif message_content == " list":
+                if name_request == clients_names[i]:
+                  send_pkt(f'[{local_time}] {clients_names}'.encode(), client, i)
 
-            elif (message_content.strip()).startswith(f'@{clients_names[i]}'):
-              send_pkt(message_content.encode(), client, i)
+              elif (message_content.strip()).startswith(f'@{clients_names[i]}'):
+                send_pkt(message_content.encode(), client, i)
 
-            elif (message_content.strip()).startswith('ban @') and name_request not in ban_counter[i]:
-              if (message_content.strip()).startswith(f'ban @{clients_names[i]}'):
-                ban_counter[i].append(name_request)
-                if len(ban_counter[i]) >= 2*len(clients_names)/3:
-                  ban_checker = True
-                  banned_index = i
+              elif (message_content.strip()).startswith('ban @') and name_request not in ban_counter[i]: # Verifica se o usuário que está banindo não está na lista de banidos
+                if (message_content.strip()).startswith(f'ban @{clients_names[i]}'):
+                  ban_counter[i].append(name_request)
+                  print("ban counter:", ban_counter)
+                  if len(ban_counter[i]) >= 2*len(clients_names)/3:
+                    ban_checker = True
+                    banned_index = i
+                    
+                  vote_checker = True
+
+                if vote_checker:
+                  send_pkt(f'[{local_time}] {len(ban_counter[i])}/{len(clients_names)} - ban {clients_names[i]}'.encode(), client, i)
+                  vote_checker = False
                   
-                vote_checker = True
+                if ban_checker:
+                  send_pkt(f'[{local_time}] O usuario {clients_names[i]} foi banido!!!'.encode(), client, i)
+                  ban_checker = False
 
-              if vote_checker:
-                send_pkt(f'[{local_time}] {len(ban_counter[i])}/{len(clients_names)} - ban {clients_names[i]}'.encode(), client, i)
-                vote_checker = False
-                
-              if ban_checker:
-                send_pkt(f'[{local_time}] O usuario {clients_names[i]} foi banido!!!'.encode(), client, i)
-                ban_checker = False
-
-            elif not (message_content.strip()).startswith(f'@'):
-              send_pkt(f'[{local_time}] {message.decode()}'.encode(), client, i)
+              elif not (message_content.strip()).startswith(f'@'):
+                send_pkt(f'[{local_time}] {message.decode()}'.encode(), client, i)
 
           if message.decode().split(':')[1] == " bye":
             index = clients_names.index(name_request)
@@ -157,9 +166,8 @@ def broadcast():
             ban_counter.pop(index)
             num_seq_list.pop(index)
             expected_num_seq.pop(index)
+
           if len(ban_counter[banned_index]) >= 2*len(clients_names)/3:
-            print("cheguei aqui")
-            print("index", banned_index)
             banned_names.append(clients_names[banned_index])
             clients.pop(banned_index)
             clients_names.pop(banned_index)
