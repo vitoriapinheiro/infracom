@@ -15,14 +15,6 @@ correct_ACK = True
 
 client.bind(('localhost', random.randint(8000, 9000)))
 
-def send_ACK(num_seq, client_address):
-    global expected_num_seq
-
-    client.sendto(expected_num_seq, client_address) # envia o ACK com o número de sequencia esperado
-    
-    if num_seq == expected_num_seq:                 # se o que foi recebido era o esperado, muda o número esperado
-        expected_num_seq =  b'0' if (expected_num_seq == b'1') else b'1'
-
 def send_pkt(msg):
     global num_seq, correct_ACK
 

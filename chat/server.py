@@ -94,10 +94,12 @@ def broadcast():
 
         # mensagem de verificação de ban
         if (message.decode().split(':')[1].strip()).startswith('ban @'):
-          if time.time() >= (ban_timer[index_sender] + timer):          # Verifica se o usuário que está banindo não está na lista de banidos
+
+          if time.time() >= (ban_timer[index_sender] + timer):          
             in_ban_name = (message.decode().split(':')[1].strip()).split('@')[1]
 
             for i in range(len(clients)):
+              # Verifica se o usuário que está banindo não está na lista de banidos
               if clients_names[i] == in_ban_name and name not in ban_counter[i]:
 
                 in_ban_index = i
