@@ -1,6 +1,7 @@
 import socket
 import threading
 import random
+# from colorama import Fore, Back, Style
 
 BUFFER_SIZE = 1024 # tamanho do buffer
 
@@ -48,6 +49,7 @@ def receive_message():
             else:
 
                 print(message.decode())
+                # print(Style.RESET_ALL)
         except:
             pass
 
@@ -60,6 +62,5 @@ while True:
     message = input()
     send_pkt(f'{name}: {message}'.encode())
     if message == 'bye':
-        t.raise_exception()
         t.join()
         break
