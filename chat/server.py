@@ -104,7 +104,29 @@ def broadcast():
           expected_num_seq.append(b'1')
         if name not in banned_names:
           send_ACK(ack, address)               # ACK for received message
+
+        in_ban_name = ""
+        in_ban_index = 0
         
+
+        ban_checker = False
+        vote_checker = False
+
+
+        if (message.decode().split(':')[1].strip()).startswith('ban @') and name not in ban_counter[i]: # Verifica se o usuário que está banindo não está na lista de banidos
+          in_ban_name = (message.decode().split(':')[1].strip()).split('@')[1]
+          for i in range(len(clients)):
+            if clients_names[i] == in_ban_name:
+              in_ban_index = i
+              ban_counter[i].append(name_request)
+              print("ban counter:", ban_counter)
+              if len(ban_counter[i]) >= 2*len(clients_names)/3:
+                ban_checker = True
+                banned_index = i
+                
+              vote_checker = True
+
+
         for i, client in enumerate(clients):
           if message.decode().startswith('hi, meu nome eh:'):
             name = message.decode().split(':')[1]
@@ -136,45 +158,34 @@ def broadcast():
                   send_pkt(f'[{local_time}] {clients_names}'.encode(), client, i)
 
               elif (message_content.strip()).startswith(f'@{clients_names[i]}'):
-                send_pkt(message_content.encode(), client, i)
+                send_pkt(f'[{local_time}] {name_request}:{message_content}'.encode(), client, i)
 
-              elif (message_content.strip()).startswith('ban @') and name_request not in ban_counter[i]: # Verifica se o usuário que está banindo não está na lista de banidos
-                if (message_content.strip()).startswith(f'ban @{clients_names[i]}'):
-                  ban_counter[i].append(name_request)
-                  print("ban counter:", ban_counter)
-                  if len(ban_counter[i]) >= 2*len(clients_names)/3:
-                    ban_checker = True
-                    banned_index = i
-                    
-                  vote_checker = True
+              if vote_checker:
+                send_pkt(f'[{local_time}] {len(ban_counter[in_ban_index])}/{len(clients_names)} - ban {in_ban_name}'.encode(), client, i)
+                
+              if ban_checker:
+                send_pkt(f'[{local_time}] O usuario {clients_names[in_ban_index]} foi banido!!!'.encode(), client, i)
 
-                if vote_checker:
-                  send_pkt(f'[{local_time}] {len(ban_counter[i])}/{len(clients_names)} - ban {clients_names[i]}'.encode(), client, i)
-                  vote_checker = False
-                  
-                if ban_checker:
-                  send_pkt(f'[{local_time}] O usuario {clients_names[i]} foi banido!!!'.encode(), client, i)
-                  ban_checker = False
-
-              elif not (message_content.strip()).startswith(f'@'):
+              if not (message_content.strip()).startswith(f'@'):
                 send_pkt(f'[{local_time}] {message.decode()}'.encode(), client, i)
 
-          if message.decode().split(':')[1] == " bye":
-            index = clients_names.index(name_request)
-            clients.pop(index)
-            clients_names.pop(index)
-            ban_counter.pop(index)
-            num_seq_list.pop(index)
-            expected_num_seq.pop(index)
+        if len(ban_counter[banned_index]) >= 2*len(clients_names)/3:
+          banned_names.append(clients_names[banned_index])
+          clients.pop(banned_index)
+          clients_names.pop(banned_index)
+          ban_counter.pop(banned_index)
+          num_seq_list.pop(banned_index)
+          expected_num_seq.pop(banned_index)
+          banned_index = 0
+        if message.decode().split(':')[1] == " bye":
+          index = clients_names.index(name_request)
+          clients.pop(index)
+          clients_names.pop(index)
+          ban_counter.pop(index)
+          num_seq_list.pop(index)
+          expected_num_seq.pop(index)
 
-          if len(ban_counter[banned_index]) >= 2*len(clients_names)/3:
-            banned_names.append(clients_names[banned_index])
-            clients.pop(banned_index)
-            clients_names.pop(banned_index)
-            ban_counter.pop(banned_index)
-            num_seq_list.pop(banned_index)
-            expected_num_seq.pop(banned_index)
-            banned_index = 0
+          
 
 
 t1 = threading.Thread(target=receive_message)
